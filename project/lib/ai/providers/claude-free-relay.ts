@@ -7,6 +7,7 @@ import {
 } from '@/lib/ai/domain-synthesizer';
 import { isWeatherQuery, searchWebFree, type WebFactContext } from '@/lib/ai/web-search-free';
 import { useProvidersStore } from '@/store/providers-store';
+import { injectGuardrailsIntoSystemPrompt, sanitizeUserFacingOutput } from '@/lib/ai/omni-router';
 
 const POLLINATIONS_OPENAI_URL = 'https://text.pollinations.ai/openai';
 
@@ -103,12 +104,15 @@ export async function streamPuterClaude(
     ? `\n\n[Fatos Verificados em Tempo Real (${liveFact.sourceName})]:\nTítulo: ${liveFact.title}\nResumo: ${liveFact.summary}`
     : '';
 
+  const systemPrompt = injectGuardrailsIntoSystemPrompt(
+    'Você é um assistente especialista integrado ao Second Brain. Responda em português de forma direta, clara, factual e bem formatada em Markdown. Nunca invente jargões corporativos.'
+  );
+
   const cloudReply = await queryPollinationsAnonymous(
     [
       {
         role: 'system',
-        content:
-          'Você é um assistente especialista integrado ao Second Brain. Responda em português de forma direta, clara, factual e bem formatada em Markdown. Nunca invente jargões corporativos.',
+        content: systemPrompt,
       },
       {
         role: 'user',
@@ -120,7 +124,7 @@ export async function streamPuterClaude(
   );
 
   if (cloudReply) {
-    onText(cloudReply);
+    onText(sanitizeUserFacingOutput(cloudReply));
     useProvidersStore.getState().setLayerStatus(2, 'synced', Date.now() - start);
     return true;
   }

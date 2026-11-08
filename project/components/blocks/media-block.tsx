@@ -232,11 +232,17 @@ export function MediaBlockView({
                     className="relative aspect-video overflow-hidden rounded-xl border border-[#2563EB] bg-black shadow-lg"
                   >
                     <iframe
+                      ref={(el) => {
+                        if (el) {
+                          el.onerror = () => setVideoErrors((prev) => ({ ...prev, [vid.id]: true }));
+                        }
+                      }}
                       src={vid.embedUrl}
                       title={vid.title}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                       onError={() => setVideoErrors((prev) => ({ ...prev, [vid.id]: true }))}
+                      onErrorCapture={() => setVideoErrors((prev) => ({ ...prev, [vid.id]: true }))}
                       className="h-full w-full border-none"
                     />
                     <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">

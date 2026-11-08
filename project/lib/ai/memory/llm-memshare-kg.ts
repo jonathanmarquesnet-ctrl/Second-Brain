@@ -106,3 +106,127 @@ export async function getTopTriplesContext(query: string): Promise<string> {
     ? `[MemShare KG Top-${lines.length}]:\n${lines.join('\n')}`
     : '';
 }
+
+// ============================================================================
+// SUBSISTEMA: BANCO DE LIÇÕES TIPADAS DE PREVENÇÃO DE BUGS (CAMADA 10)
+// ============================================================================
+
+export interface BugConstraint {
+  id: string;
+  category: 'media' | 'query' | 'temporal' | 'layout';
+  triggerCondition: string;
+  enforcementRule: string;
+  lastTriggeredAt: number;
+}
+
+export const INITIAL_BUG_LESSONS: BugConstraint[] = [
+  {
+    id: 'raw_query_wikipedia',
+    category: 'query',
+    triggerCondition: 'consulta de enciclopédia/wikipedia',
+    enforcementRule:
+      'Extrair o sujeito principal antes de consultar enciclopédias; comandos e datas não devem compor a busca do artigo.',
+    lastTriggeredAt: 1700000000001,
+  },
+  {
+    id: 'youtube_iframe_blackscreen',
+    category: 'media',
+    triggerCondition: 'incorporação de iframe de vídeo',
+    enforcementRule:
+      'Proibido exibir iframe de vídeo sem validação; falhas devem virar cards interativos com thumbnail.',
+    lastTriggeredAt: 1700000000002,
+  },
+  {
+    id: 'static_metadata_chart',
+    category: 'layout',
+    triggerCondition: 'geração de blocos de gráfico',
+    enforcementRule:
+      "Nunca gerar gráficos com 'Dados Oficiais', 'Cobertura Web' ou métricas genéricas abstratas.",
+    lastTriggeredAt: 1700000000003,
+  },
+];
+
+const BUG_CONSTRAINTS_KEY = 'bug_constraints_v1';
+const MAX_BUG_CONSTRAINTS = 8;
+const TOP_CONSTRAINTS_LIMIT = 5;
+
+let inMemoryConstraints: Map<string, BugConstraint> = new Map(
+  INITIAL_BUG_LESSONS.map((l) => [l.id, { ...l }])
+);
+
+export async function loadBugConstraints(): Promise<BugConstraint[]> {
+  const kgStore = getKgStore();
+  if (!kgStore) {
+    return Array.from(inMemoryConstraints.values()).sort(
+      (a, b) => b.lastTriggeredAt - a.lastTriggeredAt
+    );
+  }
+  try {
+    const saved = await kgStore.getItem<BugConstraint[]>(BUG_CONSTRAINTS_KEY);
+    if (Array.isArray(saved) && saved.length > 0) {
+      inMemoryConstraints = new Map(saved.map((c) => [c.id, c]));
+      return saved.sort((a, b) => b.lastTriggeredAt - a.lastTriggeredAt);
+    }
+    const initial = [...INITIAL_BUG_LESSONS].sort((a, b) => b.lastTriggeredAt - a.lastTriggeredAt);
+    await kgStore.setItem(BUG_CONSTRAINTS_KEY, initial);
+    inMemoryConstraints = new Map(initial.map((c) => [c.id, c]));
+    return initial;
+  } catch {
+    return Array.from(inMemoryConstraints.values()).sort(
+      (a, b) => b.lastTriggeredAt - a.lastTriggeredAt
+    );
+  }
+}
+
+export async function saveBugLesson(lesson: BugConstraint): Promise<void> {
+  const current = Array.from(inMemoryConstraints.values());
+  const filtered = current.filter((c) => c.id !== lesson.id);
+  const updated = [lesson, ...filtered];
+  updated.sort((a, b) => b.lastTriggeredAt - a.lastTriggeredAt);
+  const pruned = updated.slice(0, MAX_BUG_CONSTRAINTS);
+
+  inMemoryConstraints = new Map(pruned.map((c) => [c.id, c]));
+
+  const kgStore = getKgStore();
+  if (kgStore) {
+    try {
+      await kgStore.setItem(BUG_CONSTRAINTS_KEY, pruned);
+    } catch {
+      // Ignora erro no armazenamento
+    }
+  }
+}
+
+export function getActiveConstraints(category?: string): string[] {
+  const list = Array.from(inMemoryConstraints.values()).sort(
+    (a, b) => b.lastTriggeredAt - a.lastTriggeredAt
+  );
+  const filtered = category
+    ? list.filter((c) => c.category === category)
+    : list;
+  const top5 = filtered.slice(0, TOP_CONSTRAINTS_LIMIT);
+  return top5.map((c) => `- ${c.enforcementRule}`);
+}
+
+export async function getActiveConstraintsAsync(category?: string): Promise<string[]> {
+  await loadBugConstraints();
+  return getActiveConstraints(category);
+}
+
+export function getRawBugConstraints(): BugConstraint[] {
+  return Array.from(inMemoryConstraints.values()).sort(
+    (a, b) => b.lastTriggeredAt - a.lastTriggeredAt
+  );
+}
+
+export async function resetBugConstraints(): Promise<void> {
+  inMemoryConstraints = new Map(INITIAL_BUG_LESSONS.map((l) => [l.id, { ...l }]));
+  const kgStore = getKgStore();
+  if (kgStore) {
+    try {
+      await kgStore.setItem(BUG_CONSTRAINTS_KEY, [...INITIAL_BUG_LESSONS]);
+    } catch {
+      // Ignora erro
+    }
+  }
+}

@@ -12,6 +12,7 @@ import {
   sanitizeRawQuery,
   type WebFactContext,
 } from './web-search-free';
+import { injectGuardrailsIntoSystemPrompt, sanitizeUserFacingOutput } from './omni-router';
 
 export type QueryIntent =
   | 'weather_or_metric'
@@ -486,31 +487,39 @@ export const SYSTEM_INFO = {
   };
 }
 
+export function buildDomainSystemPrompt(base = 'Você é o motor cognitivo do Second Brain. Responda com clareza e precisão factual.'): string {
+  return injectGuardrailsIntoSystemPrompt(base);
+}
+
 export function synthesizeDomainProfile(rawPrompt: string, liveFact?: WebFactContext | null): DomainProfile {
   const topic = extractCleanTopic(rawPrompt);
   const lower = topic.toLowerCase();
   const intent = detectQueryIntent(rawPrompt);
 
+  let profile: DomainProfile;
+
   if (liveFact?.kind === 'weather' || isWeatherQuery(topic)) {
-    return buildWeatherProfile(topic, liveFact);
-  }
-
-  if (intent === 'conversational') {
-    return buildConversationalProfile(topic);
-  }
-
-  if (intent === 'media_or_datetime' || liveFact?.kind === 'media' || liveFact?.kind === 'datetime' || liveFact?.media) {
-    return buildMediaOrDateTimeProfile(topic, liveFact);
-  }
-
-  if (
+    profile = buildWeatherProfile(topic, liveFact);
+  } else if (intent === 'conversational') {
+    profile = buildConversationalProfile(topic);
+  } else if (intent === 'media_or_datetime' || liveFact?.kind === 'media' || liveFact?.kind === 'datetime' || liveFact?.media) {
+    profile = buildMediaOrDateTimeProfile(topic, liveFact);
+  } else if (
     !liveFact &&
     (lower.includes('brasil') || lower.includes('economia brasileira') || lower.includes('mercado brasileiro'))
   ) {
-    return buildBrasilProfile(topic);
+    profile = buildBrasilProfile(topic);
+  } else {
+    profile = buildFactualOrTechProfile(topic, liveFact);
   }
 
-  return buildFactualOrTechProfile(topic, liveFact);
+  // Higienização estrita de saída para garantir que nenhuma tag de guardrail ou nome interno vaze
+  profile.intro = sanitizeUserFacingOutput(profile.intro);
+  if (profile.chatAnswer) {
+    profile.chatAnswer = sanitizeUserFacingOutput(profile.chatAnswer);
+  }
+
+  return profile;
 }
 
 export function synthesizeDomainFieldsJson(

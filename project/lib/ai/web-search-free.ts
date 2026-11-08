@@ -348,18 +348,30 @@ export function extractCoreSubject(query: string): string {
 
   s = s.replace(/[?!.,;:]/g, ' ');
   s = s.replace(
-    /\b(que dia e hoje|que dia|qual a data|qual o dia|horario de atendimento|data de hoje|data atual|hora atual)\b/g,
+    /\b(que dia e hoje|que dia|qual a data|qual o dia|horario de atendimento|data de hoje|data atual|hora atual|data hj|data hoje|horas?|horario|calendario|ano|mes|tempo agora)\b/g,
     ' '
   );
+  s = s.replace(
+    /\b(me mostre|mostre|mostrar|me veja|veja|ver|exibir|pesquise sobre|pesquise|busque por|busque|quero ver|fotos e videos|fotos e imagens|fotos|foto|fotografia|imagens|imagem|videos|video|vídeos|vídeo|sobre)\b/g,
+    ' '
+  );
+  s = s.replace(/^\s*(de|do|da|dos|das|no|na|nos|nas|em|com|para|por|e|o|a|os|as)\s+/g, ' ');
 
-  const words = s.split(/\s+/).filter((w) => w && !COMMAND_MEDIA_STOPWORDS.has(w));
-  const raw = words.join(' ').trim();
+  const tokens = s.trim().split(/\s+/).filter(Boolean);
+  while (tokens.length > 0 && (tokens[0] === 'e' || tokens[0] === 'de' || tokens[0] === 'do' || tokens[0] === 'da' || tokens[0] === 'para' || tokens[0] === 'com')) {
+    tokens.shift();
+  }
+  while (tokens.length > 0 && (tokens[tokens.length - 1] === 'e' || tokens[tokens.length - 1] === 'hj' || tokens[tokens.length - 1] === 'data' || tokens[tokens.length - 1] === 'hoje' || tokens[tokens.length - 1] === 'agora')) {
+    tokens.pop();
+  }
+
+  const raw = tokens.join(' ').trim();
   if (!raw || raw.length < 2) return '';
 
   if (raw === 'brasil') return 'Brasil';
   return raw
     .split(' ')
-    .map((w) => (w.length > 2 ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w.toLowerCase()))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
 }
 

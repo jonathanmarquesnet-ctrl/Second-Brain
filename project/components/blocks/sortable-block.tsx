@@ -23,10 +23,39 @@ export const SortableBlock = memo(function SortableBlock({
   fullWidth?: boolean;
 }) {
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
   const deleteBlock = useBlocksStore((state) => state.deleteBlock);
   const reviewBlock = useBlocksStore((state) => state.reviewBlock);
   const applyReview = useBlocksStore((state) => state.applyReview);
+
+  function handleCopy() {
+    let textToCopy = '';
+    switch (block.type) {
+      case 'intro':
+        textToCopy = block.content;
+        break;
+      case 'critic':
+        textToCopy = (block.points ?? []).join('\n');
+        break;
+      case 'code':
+        textToCopy = block.code;
+        break;
+      case 'slides':
+        textToCopy = (block.slides ?? []).map((s) => `## ${s.heading}\n${s.body}`).join('\n\n');
+        break;
+      case 'chart':
+        textToCopy = (block.data ?? []).map((d) => `${d.label}: ${d.value}`).join('\n');
+        break;
+      default:
+        textToCopy = JSON.stringify(block);
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
 
   return (
     <div
@@ -44,6 +73,8 @@ export const SortableBlock = memo(function SortableBlock({
         dragHandleProps={{ ...attributes, ...listeners }}
         onRemove={() => deleteBlock(block.id)}
         onReview={() => setReviewOpen((open) => !open)}
+        onCopy={handleCopy}
+        copied={copied}
       />
       {reviewOpen && (
         <ReviewMenu

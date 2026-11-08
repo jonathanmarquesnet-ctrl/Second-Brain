@@ -18,21 +18,30 @@ function getStores(): { chat: LocalForage; settings: LocalForage } | null {
 const CONVERSATIONS_KEY = 'conversations';
 const API_KEY_KEY = 'anthropic_key';
 
+const memoryConversationsFallback: Conversation[] = [];
+let memoryApiKeyFallback = '';
+
 export async function loadChatState(): Promise<{ conversations: Conversation[]; apiKey: string }> {
   const stores = getStores();
-  if (!stores) return { conversations: [], apiKey: '' };
+  if (!stores) {
+    return { conversations: [...memoryConversationsFallback], apiKey: memoryApiKeyFallback };
+  }
   try {
     const [saved, key] = await Promise.all([
       stores.chat.getItem<Conversation[]>(CONVERSATIONS_KEY),
       stores.settings.getItem<string>(API_KEY_KEY),
     ]);
-    return { conversations: Array.isArray(saved) ? saved : [], apiKey: typeof key === 'string' ? key : '' };
+    const conversations = Array.isArray(saved) ? saved : [...memoryConversationsFallback];
+    const apiKey = typeof key === 'string' ? key : memoryApiKeyFallback;
+    return { conversations, apiKey };
   } catch {
-    return { conversations: [], apiKey: '' };
+    return { conversations: [...memoryConversationsFallback], apiKey: memoryApiKeyFallback };
   }
 }
 
 export async function saveConversations(conversations: Conversation[]): Promise<void> {
+  memoryConversationsFallback.length = 0;
+  memoryConversationsFallback.push(...conversations);
   const stores = getStores();
   if (!stores) return;
   try {
@@ -41,6 +50,7 @@ export async function saveConversations(conversations: Conversation[]): Promise<
 }
 
 export async function saveApiKey(key: string): Promise<void> {
+  memoryApiKeyFallback = key;
   const stores = getStores();
   if (!stores) return;
   try {
