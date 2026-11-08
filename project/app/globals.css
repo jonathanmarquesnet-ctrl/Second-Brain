@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 217 82% 57%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 4%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 4%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 217 82% 57%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 0% 100%;
+    --destructive-foreground: 0 0% 0%;
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
+    --ring: 217 82% 57%;
+    --chart-1: 0 0% 100%;
+    --chart-2: 0 0% 64%;
+    --chart-3: 217 82% 57%;
+    --chart-4: 0 0% 32%;
+    --chart-5: 0 0% 20%;
+    --radius: 0.65rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html, body { @apply bg-background text-foreground; }
+  body { min-height: 100vh; }
+}
+
+@layer utilities {
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: #1f1f1f transparent; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #1f1f1f; border-radius: 3px; }
+  .glass { background-color: rgba(0, 0, 0, 0.82); backdrop-filter: blur(14px); }
+  .logo-screen { mix-blend-mode: screen; }
+  .blue-glow { box-shadow: 0 0 42px rgba(37, 99, 235, 0.18); }
+}
+
+/* Bloqueio absoluto de modais ou iframes de login do Puter (Zero-Login Garantido) */
+iframe[src*="puter.com"],
+.puter-dialog,
+[class*="puter-dialog"],
+[id*="puter-dialog"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
